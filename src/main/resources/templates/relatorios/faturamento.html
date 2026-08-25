@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"
+      th:attr="data-bs-theme=${darkMode ? 'dark' : 'light'}">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório de Faturamento</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-body">
+<!-- HEADER (mesmo padrão do sistema) -->
+<nav class="navbar navbar-dark bg-primary rounded mb-4 px-3 py-2">
+        <span class="navbar-brand mb-0 h1">
+            <i class="bi bi-wrench-adjustable-circle"></i> Sistema Manutenção
+        </span>
+    <div class="d-flex align-items-center gap-3 text-white">
+        <span class="small"><i class="bi bi-person-circle"></i> Logado como: <span th:text="${#authentication.name}"></span></span>
+        <span class="small"><i class="bi bi-moon-stars"></i> <span th:text="${darkMode ? 'Escuro' : 'Claro'}"></span></span>
+        <a class="btn btn-sm btn-light" th:href="@{/logout}">
+            <i class="bi bi-box-arrow-right"></i> Sair
+        </a>
+    </div>
+</nav>
+<div class="container mt-4" style="max-width: 900px;">
+
+    <div th:if="${sucesso}" class="alert alert-success" th:text="${sucesso}"></div>
+    <div th:if="${erro}" class="alert alert-danger" th:text="${erro}"></div>
+
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h1 class="h5 mb-0"><i class="bi bi-clipboard-data"></i> Faturamento por Período</h1>
+            <a th:if="${!limpo}" class="btn btn-sm btn-outline-light" th:href="@{/relatorios/faturamento(limpo=true)}">
+                <i class="bi bi-eraser"></i> Limpar
+            </a>
+        </div>
+        <div class="card-body">
+            <!-- FORM: o botão Gerar DEVE estar dentro deste form -->
+            <form th:action="@{/relatorios/faturamento}" method="get" class="row g-3 align-items-end">
+
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Data Início</label>
+                    <input type="date" name="dataInicio" id="dataInicio" class="form-control" th:value="${dataInicio}">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Data Fim</label>
+                    <input type="date" name="dataFim" id="dataFim" class="form-control" th:value="${dataFim}">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search"></i> Gerar Relatório
+                    </button>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Exportar</label>
+                    <div class="input-group">
+                        <select id="tipoExportacao" class="form-select">
+                            <option value="excel">Excel (.xlsx)</option>
+                            <option value="csv">CSV</option>
+                            <option value="pdf">PDF</option>
+                        </select>
+                        <button type="button" class="btn btn-success" onclick="exportar()">
+                            <i class="bi bi-download"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- RESULTADO: só mostra conteúdo quando há filtro -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0"><i class="bi bi-clipboard-data"></i> Resultado</h2>
+        </div>
+        <div class="card-body">
+
+            <!-- PERÍODO: só renderiza quando as datas existem (evita quebra do #temporals) -->
+            <p class="text-muted mb-3" th:if="${dataInicio != null && dataFim != null}">
+                Período: <strong th:text="${#temporals.format(dataInicio, 'dd/MM/yyyy')}"></strong>
+                a <strong th:text="${#temporals.format(dataFim, 'dd/MM/yyyy')}"></strong>
+            </p>
+            <p class="text-muted mb-3" th:if="${dataInicio == null || dataFim == null}">
+                Informe as datas e clique em <strong>Gerar Relatório</strong> para visualizar os resultados.
+            </p>
+
+            <div class="row text-center g-3">
+                <div class="col-md-4">
+                    <div class="border rounded p-3">
+                        <div class="text-muted small">Total de Ordens</div>
+                        <div class="fs-3 fw-bold" th:text="${relatorio.totalOrdens}">0</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3">
+                        <div class="text-muted small">Ordens Concluídas</div>
+                        <div class="fs-3 fw-bold" th:text="${relatorio.totalConcluidas}">0</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3 bg-success text-white">
+                        <div class="small">Faturamento Total</div>
+                        <div class="fs-3 fw-bold">
+                            R$ <span th:text="${#numbers.formatDecimal(relatorio.faturamentoTotal, 1, 2, 'COMMA')}">0,00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FATURAMENTO MENSAL: card padronizado + gráfico pizza -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h2 class="h5 mb-0"><i class="bi bi-pie-chart"></i> Faturamento Mensal</h2>
+        </div>
+        <div class="card-body">
+            <canvas id="graficoFaturamento" height="100"></canvas>
+        </div>
+    </div>
+
+    <a class="btn btn-outline-secondary" th:href="@{/}">
+        <i class="bi bi-arrow-left"></i> Voltar
+    </a>
+</div>
+
+<script>
+    // Dados mensais vindos do backend (vazio quando limpo)
+    const dadosMensais = [
+        <th:block th:each="fm : ${faturamentoMensal}">
+            { mes: '<span th:text="${fm.mes}"></span>', valor: <span th:text="${fm.valor}"></span> },
+        </th:block>
+    ];
+
+    const cores = ['#0d6efd', '#20c997', '#ffc107', '#dc3545', '#6f42c1',
+        '#fd7e14', '#0dcaf0', '#198754', '#d63384', '#adb5bd'];
+
+    const ctx = document.getElementById('graficoFaturamento').getContext('2d');
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: dadosMensais.map(d => d.mes),
+            datasets: [{
+                label: 'Faturamento (R$)',
+                data: dadosMensais.map(d => d.valor),
+                backgroundColor: cores.slice(0, Math.max(dadosMensais.length, 1)),
+                borderColor: '#ffffff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            const valor = context.parsed || 0;
+                            return ' R$ ' + valor.toLocaleString('pt-BR',
+                                { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+<script>
+    function exportar() {
+        const tipo = document.getElementById('tipoExportacao').value;
+        const dataInicio = document.getElementById('dataInicio').value;
+        const dataFim = document.getElementById('dataFim').value;
+
+        if (!dataInicio || !dataFim) {
+            alert('Selecione as datas para exportar.');
+            return;
+        }
+        window.location.href = '/relatorios/faturamento/exportar?tipo='
+            + encodeURIComponent(tipo)
+            + '&dataInicio=' + dataInicio
+            + '&dataFim=' + dataFim;
+    }
+</script>
+</body>
+</html>

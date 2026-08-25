@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+</head>
+<body class="bg-body">
+<div class="container" style="max-width: 400px; margin-top: 100px;">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white text-center">
+            <h1 class="h4 mb-0"><i class="bi bi-wrench-adjustable-circle"></i> Sistema Manutenção</h1>
+        </div>
+        <div class="card-body">
+
+            <div th:if="${param.error}" class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle-fill"></i> Usuário ou senha inválidos.
+            </div>
+            <div th:if="${param.logout}" class="alert alert-success">
+                <i class="bi bi-check-circle-fill"></i> Você saiu do sistema.
+            </div>
+
+            <form th:action="@{/login}" method="post">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Usuário</label>
+                    <input type="text" name="username" class="form-control" required autofocus>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Senha</label>
+                    <div class="input-group">
+                        <input type="password" name="password" id="senhaLogin" class="form-control" required>
+                        <button type="button" class="btn btn-outline-secondary" onclick="toggleSenha('senhaLogin', this)">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="darkMode" id="darkMode">
+                    <label class="form-check-label" for="darkMode"><i class="bi bi-moon-stars"></i> Modo escuro</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-box-arrow-in-right"></i> Entrar
+                </button>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    // Mostra/oculta a senha e troca o ícone
+    function toggleSenha(idCampo, botao) {
+        const campo = document.getElementById(idCampo);
+        if (!campo) return;
+        const icone = botao.querySelector('i');
+        const mostrar = campo.type === 'password';
+        campo.type = mostrar ? 'text' : 'password';
+        if (icone) {
+            icone.classList.toggle('bi-eye', !mostrar);
+            icone.classList.toggle('bi-eye-slash', mostrar);
+        }
+    }
+
+    // Preview do dark mode antes do login
+    const checkbox = document.getElementById('darkMode');
+    if (checkbox) {
+        checkbox.addEventListener('change', function () {
+            document.documentElement.setAttribute('data-bs-theme', this.checked ? 'dark' : 'light');
+        });
+    }
+</script>
+</body>
+</html>
